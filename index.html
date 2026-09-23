@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Decision Systems Suite</title>
+</head>
+<body>
+
+    <h1>System Decision Engines</h1>
+    <hr>
+
+    <h2>1. Scholarship Eligibility Screener</h2>
+    <p>Displays applicant processing results based on logical criteria combinations and missing data handling.</p>
+
+    <button onclick="runScholarshipScreener()">Process Applicants</button>
+
+    <h3>Results Table</h3>
+    <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+            <tr>
+                <th>Applicant Name</th>
+                <th>Status</th>
+                <th>Reason / Qualification</th>
+            </tr>
+        </thead>
+        <tbody id="scholarship-results">
+            <tr>
+                <td colspan="3">Click "Process Applicants" to run screener.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <hr>
+
+    <h2>2. Sensor Alarm Decision System</h2>
+    <p>Evaluates building telemetry while filtering low battery and faulty sensors.</p>
+
+    <button onclick="runSensorSystem()">Evaluate Building Sensors</button>
+
+    <h3>Alarm Decision Output</h3>
+    <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+            <tr>
+                <th>Alarm Fired?</th>
+                <th>Triggered Rule</th>
+                <th>Explanation</th>
+            </tr>
+        </thead>
+        <tbody id="sensor-results">
+            <tr>
+                <td colspan="3">Click "Evaluate Building Sensors" to analyze.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <script>
+
+        function validateApplicant(applicant) {
+            if (!applicant || typeof applicant !== 'object') {
+                return { valid: false, reason: "Missing applicant record" };
+            }
+            const { name, grade, attendance, isIndigent, hasFailingMark, activities } = applicant;
+            if (typeof name !== 'string' || name.trim() === '') return { valid: false, reason: "Invalid name" };
+            if (typeof grade !== 'number' || isNaN(grade) || grade < 0 || grade > 100) return { valid: false, reason: "Invalid grade" };
+            if (typeof attendance !== 'number' || isNaN(attendance) || attendance < 0 || attendance > 100) return { valid: false, reason: "Invalid attendance" };
+            if (typeof isIndigent !== 'boolean') return { valid: false, reason: "Invalid indigent flag" };
+            if (typeof hasFailingMark !== 'boolean') return { valid: false, reason: "Invalid failing mark flag" };
+            if (!Array.isArray(activities)) return { valid: false, reason: "Invalid activities list" };
+            return { valid: true };
+        }
+
+        function processScholarshipApplicants(applicants) {
+            return applicants.map(applicant => {
+                const validation = validateApplicant(applicant);
+                if (!validation.valid) {
+                    return {
+                        name: applicant && applicant.name ? applicant.name : "Unknown",
+                        status: "Rejected",
+                        reason: "Data Error: " + validation.reason
+                    };
+                }
+
+                const { name, grade, attendance, isIndigent, hasFailingMark, activities } = applicant;
+
+                if (hasFailingMark) {
+                    return { name: name, status: "Rejected", reason: "Disqualified due to existing failing mark." };
+                }
+
+                const isHighAcademic = grade >= 85 && attendance >= 90;
+                const isNeedBasedEligible = isIndigent && grade >= 80 && attendance >= 85;
+                const isExtracurricularEligible = activities.length >= 2 && grade >= 82 && attendance >= 88;
+
+                if (!hasFailingMark && (isHighAcademic || isNeedBasedEligible || isExtracurricularEligible)) {
+                    const qualifications = [];
+                    if (isHighAcademic) qualifications.push("High Academic Honors");
+                    if (isNeedBasedEligible) qualifications.push("Financial Need Criteria");
+                    if (isExtracurricularEligible) qualifications.push("Leadership & Activities");
+                    return { name: name, status: "Eligible", reason: "Qualified via: " + qualifications.join(" | ") };
+                }
+
+                const isStandardWaitlist = grade >= 75 && attendance >= 80;
+                const isIndigentWaitlist = isIndigent && grade >= 72 && attendance >= 75;
+
+                if (!hasFailingMark && (isStandardWaitlist || isIndigentWaitlist)) {
+                    return { name: name, status: "Waitlisted", reason: "Meets minimum waitlist requirements." };
+                }
+
+                return { name: name, status: "Rejected", reason: "Does not meet scholarship eligibility thresholds." };
+            });
+        }
+
+        function runScholarshipScreener() {
+            const applicants = [
+                { name: "Alice Smith", grade: 92, attendance: 95, isIndigent: false, hasFailingMark: false, activities: ["Debate Club", "Math Team"] },
+                { name: "Bob Jones", grade: 81, attendance: 87, isIndigent: true, hasFailingMark: false, activities: [] },
+                { name: "Charlie Brown", grade: 96, attendance: 98, isIndigent: false, hasFailingMark: true, activities: ["Chess Club"] },
+                { name: "Diana Prince", grade: 78, attendance: 82, isIndigent: false, hasFailingMark: false, activities: ["Student Council"] },
+                { name: "Evan Wright", grade: 83, attendance: 89, isIndigent: false, hasFailingMark: false, activities: ["Robotics", "Volleyball"] },
+                { name: "Fiona Gallagher", grade: null, attendance: 90, isIndigent: true, hasFailingMark: false, activities: [] },
+                { name: "George Clark", grade: 70, attendance: 60, isIndigent: false, hasFailingMark: false, activities: [] }
+            ];
+
+            const results = processScholarshipApplicants(applicants);
+            const tbody = document.getElementById("scholarship-results");
+            tbody.innerHTML = "";
+
+            results.forEach(res => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = "<td>" + res.name + "</td><td><b>" + res.status + "</b></td><td>" + res.reason + "</td>";
+                tbody.appendChild(tr);
+            });
+        }
+
+    
+        function evaluateSensorAlarm(sensors) {
+            if (!Array.isArray(sensors) || sensors.length === 0) {
+                return { alarmFired: false, ruleTriggered: "RULE_ERROR", explanation: "No sensors available." };
+            }
+
+            const functionalSensors = [];
+            const ignoredSensors = [];
+
+            for (const sensor of sensors) {
+                if (!sensor || typeof sensor !== 'object') continue;
+                const { id, type, triggered, isFaulty, battery } = sensor;
+                const isBatteryLow = typeof battery !== 'number' || battery < 10;
+                const isSensorFaulty = isFaulty === true;
+                const isValidType = ['motion', 'smoke', 'door', 'window'].includes(type);
+
+                if (isSensorFaulty || isBatteryLow || !isValidType || typeof triggered !== 'boolean') {
+                    let reason = isSensorFaulty ? "Faulty Flag" : (isBatteryLow ? "Low Battery" : "Invalid Data");
+                    ignoredSensors.push((id || "Unknown") + " (" + reason + ")");
+                } else {
+                    functionalSensors.push(sensor);
+                }
+            }
+
+            if (functionalSensors.length === 0) {
+                return {
+                    alarmFired: false,
+                    ruleTriggered: "RULE_0_SYSTEM_FAULT",
+                    explanation: "All sensors unreliable: " + ignoredSensors.join(", ") + ". System Maintenance Required."
+                };
+            }
+
+            const triggeredSmoke = functionalSensors.filter(s => s.type === 'smoke' && s.triggered);
+            const triggeredSecurity = functionalSensors.filter(s => ['motion', 'door', 'window'].includes(s.type) && s.triggered);
+
+            if (triggeredSmoke.length > 0) {
+                const sensorIds = triggeredSmoke.map(s => s.id).join(", ");
+                return {
+                    alarmFired: true,
+                    ruleTriggered: "RULE_1_CRITICAL_FIRE_ALARM",
+                    explanation: "CRITICAL FIRE THREAT: Smoke detected on sensor(s): " + sensorIds
+                };
+            }
+
+            if (triggeredSecurity.length >= 2) {
+                const details = triggeredSecurity.map(s => s.id + " (" + s.type + ")").join(", ");
+                return {
+                    alarmFired: true,
+                    ruleTriggered: "RULE_2_MULTI_SENSOR_SECURITY_BREACH",
+                    explanation: "SECURITY BREACH: Multiple perimeter triggers detected on: " + details
+                };
+            }
+
+            if (triggeredSecurity.length === 1) {
+                const s = triggeredSecurity[0];
+                return {
+                    alarmFired: false,
+                    ruleTriggered: "RULE_3_SINGLE_SENSOR_FALSE_ALARM_CANCELLATION",
+                    explanation: "ALARM CANCELLED: Isolated trigger on sensor " + s.id + " (" + s.type + ") suppressed to prevent false alarm."
+                };
+            }
+
+            return {
+                alarmFired: false,
+                ruleTriggered: "RULE_4_ALL_CLEAR",
+                explanation: "SYSTEM NORMAL: No threats detected on functional sensors."
+            };
+        }
+
+        function runSensorSystem() {
+            const sensors = [
+                { id: "S-SMOKE-01", type: "smoke", triggered: false, isFaulty: false, battery: 95 },
+                { id: "S-MOTION-01", type: "motion", triggered: true, isFaulty: false, battery: 85 },
+                { id: "S-DOOR-01", type: "door", triggered: true, isFaulty: false, battery: 90 },
+                { id: "S-WINDOW-01", type: "window", triggered: true, isFaulty: true, battery: 100 },
+                { id: "S-MOTION-02", type: "motion", triggered: true, isFaulty: false, battery: 5 }
+            ];
+
+            const result = evaluateSensorAlarm(sensors);
+            const tbody = document.getElementById("sensor-results");
+            tbody.innerHTML = "";
+
+            const tr = document.createElement("tr");
+            tr.innerHTML = "<td><b>" + (result.alarmFired ? "YES (SIREN ON)" : "NO (SILENT)") + "</b></td><td>" + result.ruleTriggered + "</td><td>" + result.explanation + "</td>";
+            tbody.appendChild(tr);
+        }
+    </script>
+
+</body>
+</html>
